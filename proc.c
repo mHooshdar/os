@@ -72,6 +72,10 @@ found:
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
+  
+  p->ctime = ticks;
+  p->etime = 0;
+  p->rtime = 0;
 
   return p;
 }
@@ -223,6 +227,8 @@ exit(void)
   proc->state = ZOMBIE;
   sched();
   panic("zombie exit");
+
+  proc->etime = ticks;
 }
 
 // Wait for a child process to exit and return its pid.
@@ -443,6 +449,7 @@ kill(int pid)
       return 0;
     }
   }
+  p->etime = ticks;
   release(&ptable.lock);
   return -1;
 }

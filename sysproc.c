@@ -95,3 +95,17 @@ sys_getppid(void)
 {
    return proc->parent->pid;
 }
+
+int 
+sys_getperformancedata(void)
+{
+   int wtime;
+   int rtime;
+   if(argint(0, &wtime) < 0)
+    return -1;
+   if(argint(1, &rtime) < 0)
+    return -1;
+   wtime = proc->etime - proc->ctime - proc->rtime;
+   rtime = proc->rtime;
+   return 0;
+}
