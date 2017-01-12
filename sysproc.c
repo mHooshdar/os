@@ -112,3 +112,8 @@ sys_rrsanity(void)
 {
   return 0;
 }
+int
+sys_frrtest(void)
+{
+  return 0;
+}

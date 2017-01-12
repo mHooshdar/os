@@ -23,3 +23,4 @@
 #define SYS_getppid 22
 #define SYS_getperformancedata 23
 #define SYS_rrsanity 24
+#define SYS_frrtest 25

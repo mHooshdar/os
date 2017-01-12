@@ -20,6 +20,44 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
+struct proc *proc_array[NPROC];
+int rear = -1;
+int front = -1;
+
+void addToQueue(struct proc *p){
+    if (rear == NPROC - 1){
+        return;
+    }
+    else {
+        if (front == rear)
+            front = rear = -1;
+        if (front == -1)
+            front = 0;
+        rear = rear + 1;
+        proc_array[rear] = p;
+    }
+}
+void removeFromQueue(struct proc *p){
+    if (front == -1 || front > rear) {
+        return;
+    }
+    else {
+        proc_array[front] = 0;
+        front = front + 1;
+    }
+}
+//void displayQueue() {
+//    int i;
+//    if (front == - 1){
+//        return;
+//    }
+//    else {
+//        for (i = front; i <= rear; i++)
+//            printf(1, "%d ", proc_array[i]->pid);
+//        printf(1, "\n");
+//    }
+//}
+
 void
 pinit(void)
 {
@@ -76,7 +114,8 @@ found:
   p->ctime = ticks;
   p->etime = 0;
   p->rtime = 0;
-  p->quanta = QUANTA;
+
+  addToQueue(p);
 
   return p;
 }
@@ -114,6 +153,7 @@ userinit(void)
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
+  removeFromQueue(proc);
   p->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -178,6 +218,7 @@ fork(void)
 
   acquire(&ptable.lock);
 
+  removeFromQueue(proc);
   np->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -312,9 +353,6 @@ scheduler(void)
         proc = 0;
       }
       else if(SCHEDFLAG == RR){
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
         if(ticks % QUANTA == 0){
           proc = p;
           switchuvm(p);
@@ -325,11 +363,25 @@ scheduler(void)
           // Process is done running for now.
           // It should have changed its p->state before coming back.
           proc = 0;
-
         }
       }
       else if(SCHEDFLAG == FRR){
+        if(ticks % QUANTA == 0) {
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          proc = p;
+          removeFromQueue(p);
+          switchuvm(p);
+          p->state = RUNNING;
 
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          proc = 0;
+        }
       }
       else if(SCHEDFLAG == GRT){
       }
@@ -371,6 +423,7 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
+  removeFromQueue(proc);
   proc->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -443,8 +496,10 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan){
+      removeFromQueue(proc);
       p->state = RUNNABLE;
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -469,8 +524,10 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
+      if(p->state == SLEEPING){
+        removeFromQueue(proc);
         p->state = RUNNABLE;
+      }
       release(&ptable.lock);
       return 0;
     }

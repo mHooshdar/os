@@ -26,6 +26,7 @@ int uptime(void);
 int getppid(void);
 int getperformancedata(int*, int*);
 int rrsanity(void);
+int frrtest(void);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -101,6 +101,7 @@ extern int sys_uptime(void);
 extern int sys_getppid(void);
 extern int sys_getperformancedata(void);
 extern int sys_rrsanity(void);
+extern int sys_frrtest(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
