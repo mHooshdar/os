@@ -50,5 +50,9 @@ int
 main(void)
 {
   waittest();
+//  int wTime = 0;
+//  int rTime = 0;
+//  getperformancedata(&wTime,&rTime);
+//  printf(1, "wTime: %d rTime: %d \n",wTime,rTime);
   exit();
 }
