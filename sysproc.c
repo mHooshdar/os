@@ -107,3 +107,8 @@ sys_getperformancedata(void)
    *rtime = proc->rtime;
    return 0;
 }
+int
+sys_rrsanity(void)
+{
+  return 0;
+}
