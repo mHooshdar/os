@@ -66,6 +66,7 @@ struct proc {
   uint ctime;		       // Creation time
   uint etime;		       // End time
   uint rtime;		       // Total running time
+  uint gtime;              // Guaranteed time
 };
 
 // Process memory is laid out contiguously, low addresses first:

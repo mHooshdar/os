@@ -27,6 +27,7 @@ int getppid(void);
 int getperformancedata(int*, int*);
 int rrsanity(void);
 int frrtest(void);
+int gsanity(void);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -117,3 +117,8 @@ sys_frrtest(void)
 {
   return 0;
 }
+int
+sys_gsanity(void)
+{
+    return 0;
+}

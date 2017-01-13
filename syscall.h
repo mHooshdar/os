@@ -24,3 +24,4 @@
 #define SYS_getperformancedata 23
 #define SYS_rrsanity 24
 #define SYS_frrtest 25
+#define SYS_gsanity 26

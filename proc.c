@@ -37,7 +37,7 @@ void addToQueue(struct proc *p){
         proc_array[rear] = p;
     }
 }
-void removeFromQueue(struct proc *p){
+void removeFromQueue(){
     if (front == -1 || front > rear) {
         return;
     }
@@ -46,6 +46,16 @@ void removeFromQueue(struct proc *p){
         front = front + 1;
     }
 }
+
+struct proc* getFrontQueue(){
+    if (front == -1 || front > rear) {
+        return 0;
+    }
+    else {
+        return proc_array[front];
+    }
+}
+
 //void displayQueue() {
 //    int i;
 //    if (front == - 1){
@@ -115,8 +125,6 @@ found:
   p->etime = 0;
   p->rtime = 0;
 
-  addToQueue(p);
-
   return p;
 }
 
@@ -153,7 +161,6 @@ userinit(void)
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
 
-  removeFromQueue(proc);
   p->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -218,7 +225,6 @@ fork(void)
 
   acquire(&ptable.lock);
 
-  removeFromQueue(proc);
   np->state = RUNNABLE;
 
   release(&ptable.lock);
@@ -331,20 +337,17 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-
-    // Loop over process table looking for process to run.
-    acquire(&ptable.lock);
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-
-      if(SCHEDFLAG == DEFAULT_PLOICY){
+    if(SCHEDFLAG == FRR){
+      if(ticks % QUANTA == 0) {
+        if(p->state != RUNNABLE)
+          continue;
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
         // before jumping back to us.
         proc = p;
         switchuvm(p);
         p->state = RUNNING;
+
         swtch(&cpu->scheduler, p->context);
         switchkvm();
 
@@ -352,44 +355,82 @@ scheduler(void)
         // It should have changed its p->state before coming back.
         proc = 0;
       }
-      else if(SCHEDFLAG == RR){
-        if(ticks % QUANTA == 0){
-          proc = p;
-          switchuvm(p);
-          p->state = RUNNING;
-          swtch(&cpu->scheduler, p->context);
-          switchkvm();
-
-          // Process is done running for now.
-          // It should have changed its p->state before coming back.
-          proc = 0;
-        }
-      }
-      else if(SCHEDFLAG == FRR){
-        if(ticks % QUANTA == 0) {
-          // Switch to chosen process.  It is the process's job
-          // to release ptable.lock and then reacquire it
-          // before jumping back to us.
-          proc = p;
-          removeFromQueue(p);
-          switchuvm(p);
-          p->state = RUNNING;
-
-          swtch(&cpu->scheduler, p->context);
-          switchkvm();
-
-          // Process is done running for now.
-          // It should have changed its p->state before coming back.
-          proc = 0;
-        }
-      }
-      else if(SCHEDFLAG == GRT){
-      }
-      else if(SCHEDFLAG == Q3){
-      }
     }
-    release(&ptable.lock);
+    else if(SCHEDFLAG == GRT){
+      acquire(&ptable.lock);
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(ticks - p->ctime == 0){
+          p->gtime = p->pid;
+        }
+        else{
+          p->gtime = p->rtime / (ticks - p->ctime);
+        }
+      }
+      release(&ptable.lock);
+        int min;
+        struct proc* minProc = ptable.proc;
+        min = 100000;
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+          if(p->state != RUNNABLE){
+            continue;
+          }
+          if (p->gtime <= min) {
+            minProc = p;
+            min = p->gtime;
+          }
+        }
+        if(minProc->state == RUNNABLE){
+          p = minProc;
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          proc = 0;
+        }
+        release(&ptable.lock);
+    }
+    else if(SCHEDFLAG == Q3){
+    }
+    else{
+      // Loop over process table looking for process to run.
+      acquire(&ptable.lock);
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+        if(p->state != RUNNABLE)
+          continue;
+            if(SCHEDFLAG == DEFAULT_PLOICY){
+              // Switch to chosen process.  It is the process's job
+              // to release ptable.lock and then reacquire it
+              // before jumping back to us.
+              proc = p;
+              switchuvm(p);
+              p->state = RUNNING;
+              swtch(&cpu->scheduler, p->context);
+              switchkvm();
 
+              // Process is done running for now.
+              // It should have changed its p->state before coming back.
+              proc = 0;
+            }
+            else if(SCHEDFLAG == RR){
+              if(ticks % QUANTA == 0){
+                proc = p;
+                switchuvm(p);
+                p->state = RUNNING;
+                swtch(&cpu->scheduler, p->context);
+                switchkvm();
+
+                // Process is done running for now.
+                // It should have changed its p->state before coming back.
+                proc = 0;
+              }
+            }
+        }
+        release(&ptable.lock);
+    }
   }
 }
 
@@ -423,7 +464,6 @@ void
 yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
-  removeFromQueue(proc);
   proc->state = RUNNABLE;
   sched();
   release(&ptable.lock);
@@ -497,7 +537,6 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan){
-      removeFromQueue(proc);
       p->state = RUNNABLE;
     }
 }
@@ -525,7 +564,6 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING){
-        removeFromQueue(proc);
         p->state = RUNNABLE;
       }
       release(&ptable.lock);
