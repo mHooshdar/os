@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "stdbool.h"
 
 struct {
   struct spinlock lock;
@@ -20,53 +21,42 @@ extern void trapret(void);
 
 static void wakeup1(void *chan);
 
-struct proc *proc_array[NPROC];
+struct proc* queue[NPROC];
+int front = 0;
 int rear = -1;
-int front = -1;
+int itemCount = 0;
 
-void addToQueue(struct proc *p){
-    if (rear == NPROC - 1){
-        return;
-    }
-    else {
-        if (front == rear)
-            front = rear = -1;
-        if (front == -1)
-            front = 0;
-        rear = rear + 1;
-        proc_array[rear] = p;
+struct proc* peek(){
+    return queue[front];
+}
+bool isEmtpy(){
+    return itemCount == 0;
+}
+bool isFull(){
+    return itemCount == NPROC;
+}
+int size(){
+    return itemCount;
+}
+void addToQueue(struct proc* data){
+    if(!isFull()){
+        if(rear == NPROC - 1){
+            rear = -1;
+        }
+        queue[++rear] = data;
+        itemCount++;
     }
 }
-void removeFromQueue(){
-    if (front == -1 || front > rear) {
-        return;
-    }
-    else {
-        proc_array[front] = 0;
-        front = front + 1;
-    }
-}
+struct proc* removeFromQueue(){
+    struct proc* data = queue[front++];
 
-struct proc* getFrontQueue(){
-    if (front == -1 || front > rear) {
-        return 0;
+    if(front == NPROC){
+        front = 0;
     }
-    else {
-        return proc_array[front];
-    }
-}
 
-//void displayQueue() {
-//    int i;
-//    if (front == - 1){
-//        return;
-//    }
-//    else {
-//        for (i = front; i <= rear; i++)
-//            printf(1, "%d ", proc_array[i]->pid);
-//        printf(1, "\n");
-//    }
-//}
+    itemCount--;
+    return data;
+}
 
 void
 pinit(void)
@@ -74,7 +64,7 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-//PAGEBREAK: 32
+//PAGEBREAK: 32fr
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
 // state required to run in the kernel.
@@ -162,6 +152,8 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  if(SCHEDFLAG == FRR)
+    addToQueue(p);
 
   release(&ptable.lock);
 }
@@ -226,6 +218,8 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  if(SCHEDFLAG == FRR)
+    addToQueue(np);
 
   release(&ptable.lock);
 
@@ -337,61 +331,40 @@ scheduler(void)
   for(;;){
     // Enable interrupts on this processor.
     sti();
-    if(SCHEDFLAG == FRR){
-      if(ticks % QUANTA == 0) {
-        if(p->state != RUNNABLE)
-          continue;
-        // Switch to chosen process.  It is the process's job
-        // to release ptable.lock and then reacquire it
-        // before jumping back to us.
-        proc = p;
-        switchuvm(p);
-        p->state = RUNNING;
-
-        swtch(&cpu->scheduler, p->context);
-        switchkvm();
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        proc = 0;
-      }
-    }
-    else if(SCHEDFLAG == GRT){
+    if(SCHEDFLAG == GRT){
       acquire(&ptable.lock);
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(ticks - p->ctime == 0){
-          p->gtime = p->pid;
+          p->gtime = 99999;
         }
         else{
           p->gtime = p->rtime / (ticks - p->ctime);
         }
       }
       release(&ptable.lock);
-        int min;
-        struct proc* minProc = ptable.proc;
-        min = 100000;
-        acquire(&ptable.lock);
-        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-          if(p->state != RUNNABLE){
-            continue;
-          }
-          if (p->gtime <= min) {
-            minProc = p;
-            min = p->gtime;
-          }
+      int min;
+      struct proc* minProc = ptable.proc;
+      min = 100000;
+      acquire(&ptable.lock);
+      for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if(p->state != RUNNABLE){
+          continue;
         }
-        if(minProc->state == RUNNABLE){
-          p = minProc;
-          proc = p;
-          switchuvm(p);
-          p->state = RUNNING;
-          swtch(&cpu->scheduler, p->context);
-          switchkvm();
-          // Process is done running for now.
-          // It should have changed its p->state before coming back.
-          proc = 0;
+        if (p->gtime <= min) {
+          minProc = p;
+         min = p->gtime;
         }
-        release(&ptable.lock);
+      }
+      if(minProc->state == RUNNABLE){
+        p = minProc;
+        proc = p;
+        switchuvm(p);
+        p->state = RUNNING;
+        swtch(&cpu->scheduler, p->context);
+        switchkvm();
+        proc = 0;
+      }
+      release(&ptable.lock);
     }
     else if(SCHEDFLAG == Q3){
     }
@@ -401,35 +374,47 @@ scheduler(void)
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state != RUNNABLE)
           continue;
-            if(SCHEDFLAG == DEFAULT_PLOICY){
-              // Switch to chosen process.  It is the process's job
-              // to release ptable.lock and then reacquire it
-              // before jumping back to us.
-              proc = p;
-              switchuvm(p);
-              p->state = RUNNING;
-              swtch(&cpu->scheduler, p->context);
-              switchkvm();
+        if(SCHEDFLAG == DEFAULT_PLOICY){
+          // Switch to chosen process.  It is the process's job
+          // to release ptable.lock and then reacquire it
+          // before jumping back to us.
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
 
-              // Process is done running for now.
-              // It should have changed its p->state before coming back.
-              proc = 0;
-            }
-            else if(SCHEDFLAG == RR){
-              if(ticks % QUANTA == 0){
-                proc = p;
-                switchuvm(p);
-                p->state = RUNNING;
-                swtch(&cpu->scheduler, p->context);
-                switchkvm();
-
-                // Process is done running for now.
-                // It should have changed its p->state before coming back.
-                proc = 0;
-              }
-            }
+          // Process is" done running for now.
+          // It should have changed its p->state before coming back.
+          proc = 0;
         }
-        release(&ptable.lock);
+        else if(SCHEDFLAG == RR){
+          if(ticks % QUANTA == 0){
+            proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+            swtch(&cpu->scheduler, p->context);
+            switchkvm();
+            proc = 0;
+          }
+        }
+        else if(SCHEDFLAG == FRR){
+          if(!isEmtpy() && p != peek()){
+            continue;
+          }
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          removeFromQueue();
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
+
+          // Process is" done running for now.
+          // It should have changed its p->state before coming back.
+          proc = 0;
+        }
+      }
+      release(&ptable.lock);
     }
   }
 }
@@ -465,6 +450,8 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
+  if(SCHEDFLAG == FRR)
+    addToQueue(proc);
   sched();
   release(&ptable.lock);
 }
@@ -538,6 +525,8 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
+      if(SCHEDFLAG == FRR)
+         addToQueue(p);
     }
 }
 
@@ -565,6 +554,8 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING){
         p->state = RUNNABLE;
+        if(SCHEDFLAG == FRR)
+          addToQueue(p);
       }
       release(&ptable.lock);
       return 0;
