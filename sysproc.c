@@ -134,3 +134,8 @@ sys_nice(void)
         return 0;
     }
 }
+int
+sys_sanity(void)
+{
+    return 0;
+}

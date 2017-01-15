@@ -104,6 +104,7 @@ extern int sys_rrsanity(void);
 extern int sys_frrtest(void);
 extern int sys_gsanity(void);
 extern int sys_nice(void);
+extern int sys_sanity(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -129,6 +130,7 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_getppid]   sys_getppid,
 [SYS_getperformancedata]   sys_getperformancedata,
+[SYS_sanity]   sys_sanity,
 };
 
 void
