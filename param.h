@@ -12,10 +12,13 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 #define QUANTA	     5	 // Sched Quanta
-#define SCHEDFLAG 2 // SchedFlag
+#define SCHEDFLAG 4 // SchedFlag
 #define DEFAULT_PLOICY 0 // Default Policy
 #define RR 1 // Round Robin
 #define FRR 2 // FIFO Round Robin
 #define GRT 3 // Guaranteed (Fair-share) Scheduling
 #define Q3 4 // Multi-Level Queue Scheduling
+#define HIGH_PRIORITY 3 // High Priority
+#define MID_PRIORITY 2 // Mid Priority
+#define LOW_PRIORITY 1 // Low Priority
 

@@ -22,40 +22,145 @@ extern void trapret(void);
 static void wakeup1(void *chan);
 
 struct proc* queue[NPROC];
+struct proc* highQueue[NPROC];
+struct proc* midQueue[NPROC];
+struct proc* lowQueue[NPROC];
 int front = 0;
 int rear = -1;
+int frontHigh = 0;
+int rearHigh = -1;
+int frontMid = 0;
+int rearMid = -1;
+int frontLow = 0;
+int rearLow = -1;
 int itemCount = 0;
+int highItemCount = 0;
+int midItemCount = 0;
+int lowItemCount = 0;
 
-struct proc* peek(){
-    return queue[front];
+struct proc* peek(struct proc* q[NPROC]){
+  return q[front];
 }
-bool isEmtpy(){
+bool isEmtpy(struct proc* q[NPROC]){
+  if(q == queue)
     return itemCount == 0;
+  else if(q == highQueue)
+    return highItemCount == 0;
+  else if(q == midQueue)
+    return midItemCount == 0;
+  else if(q == lowQueue)
+    return lowItemCount == 0;
+  return false;
 }
-bool isFull(){
+bool isFull(struct proc* q[NPROC]){
+  if(q == queue)
     return itemCount == NPROC;
+  else if(q == highQueue)
+    return highItemCount == NPROC;
+  else if(q == midQueue)
+    return midItemCount == NPROC;
+  else if(q == lowQueue)
+    return lowItemCount == NPROC;
+  return  false;
 }
-int size(){
+int size(struct proc* q[NPROC]){
+  if(q == queue)
     return itemCount;
+  else if(q == highQueue)
+    return highItemCount;
+  else if(q == midQueue)
+    return midItemCount;
+  else if(q == lowQueue)
+    return lowItemCount;
+  return 0;
 }
-void addToQueue(struct proc* data){
-    if(!isFull()){
-        if(rear == NPROC - 1){
-            rear = -1;
-        }
-        queue[++rear] = data;
-        itemCount++;
+void addToQueue(struct proc* q[NPROC], struct proc* data){
+  if(!isFull(q)){
+    if(q == queue){
+      if(rear == NPROC - 1){
+        rear = -1;
+      }
+      queue[++rear] = data;
+      itemCount++;
     }
+    else if(q == highQueue){
+      if(rearHigh == NPROC - 1){
+        rearHigh = -1;
+      }
+      highQueue[++rearHigh] = data;
+      highItemCount++;
+    }
+    else if(q == midQueue){
+      if(rearMid == NPROC - 1){
+        rearMid = -1;
+      }
+      midQueue[++rearMid] = data;
+      midItemCount++;
+    }
+    else if(q == lowQueue){
+      if(rearLow == NPROC - 1){
+        rearLow = -1;
+      }
+      lowQueue[++rearLow] = data;
+      lowItemCount++;
+    }
+  }
 }
-struct proc* removeFromQueue(){
-    struct proc* data = queue[front++];
-
+struct proc* removeFromQueue(struct proc* q[NPROC]){
+  struct proc* data = 0;
+  if(q == queue){
+    data = queue[front++];
     if(front == NPROC){
-        front = 0;
+      front = 0;
     }
-
     itemCount--;
-    return data;
+  }
+  else if(q == highQueue){
+    data = highQueue[frontHigh++];
+    if(frontHigh == NPROC){
+      frontHigh = 0;
+    }
+    highItemCount--;
+  }
+  else if(q == midQueue){
+    data = midQueue[frontMid++];
+    if(frontMid == NPROC){
+      frontMid = 0;
+    }
+    midItemCount--;
+  }
+  else if(q == lowQueue){
+    data = lowQueue[frontLow++];
+    if(frontLow == NPROC){
+      frontLow = 0;
+    }
+    lowItemCount--;
+  }
+  return data;
+}
+void removeAllFromQueue(){
+  int i = 0;
+  for(i = 0; i < NPROC; i++){
+    queue[i] = 0;
+    highQueue[i] = 0;
+    midQueue[i] = 0;
+    lowQueue[i] = 0;
+  }
+  front = 0;
+  rear = -1;
+  itemCount = 0;
+
+  frontHigh = 0;
+  rearHigh = -1;
+  highItemCount = 0;
+
+  frontMid = 0;
+  rearMid = -1;
+  midItemCount = 0;
+
+  frontLow = 0;
+  rearLow = -1;
+  lowItemCount = 0;
 }
 
 void
@@ -114,6 +219,7 @@ found:
   p->ctime = ticks;
   p->etime = 0;
   p->rtime = 0;
+  p->priority = HIGH_PRIORITY;
 
   return p;
 }
@@ -152,9 +258,8 @@ userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
-  if(SCHEDFLAG == FRR)
-    addToQueue(p);
-
+  if(SCHEDFLAG == FRR || (SCHEDFLAG == Q3 && p->priority == MID_PRIORITY))
+    addToQueue(queue, p);
   release(&ptable.lock);
 }
 
@@ -218,8 +323,8 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-  if(SCHEDFLAG == FRR)
-    addToQueue(np);
+  if(SCHEDFLAG == FRR || (SCHEDFLAG == Q3 && np->priority == MID_PRIORITY))
+    addToQueue(queue, np);
 
   release(&ptable.lock);
 
@@ -352,7 +457,7 @@ scheduler(void)
         }
         if (p->gtime <= min) {
           minProc = p;
-         min = p->gtime;
+          min = p->gtime;
         }
       }
       if(minProc->state == RUNNABLE){
@@ -367,6 +472,95 @@ scheduler(void)
       release(&ptable.lock);
     }
     else if(SCHEDFLAG == Q3){
+      removeAllFromQueue();
+      acquire(&ptable.lock);
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+        if (p->state != RUNNABLE)
+          continue;
+        if(p->priority == HIGH_PRIORITY){
+          addToQueue(highQueue, p);
+        }
+        else if(p->priority == MID_PRIORITY){
+          addToQueue(midQueue, p);
+        }
+        else if(p->priority == LOW_PRIORITY){
+          addToQueue(lowQueue, p);
+        }
+      }
+      release(&ptable.lock);
+
+      if(!isEmtpy(highQueue)){
+        acquire(&ptable.lock);
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+          if(ticks - p->ctime == 0){
+            p->gtime = 99999;
+          }
+          else{
+            p->gtime = p->rtime / (ticks - p->ctime);
+          }
+        }
+        release(&ptable.lock);
+        int min;
+        struct proc* minProc = ptable.proc;
+        min = 100000;
+        acquire(&ptable.lock);
+        for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+          if(p->state != RUNNABLE || p->priority != HIGH_PRIORITY){
+            continue;
+          }
+          if (p->gtime <= min) {
+            minProc = p;
+            min = p->gtime;
+          }
+        }
+        if(minProc->state == RUNNABLE){
+          p = minProc;
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          removeFromQueue(highQueue);
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
+          proc = 0;
+        }
+        release(&ptable.lock);
+      }
+      if(!isEmtpy(midQueue)){
+        acquire(&ptable.lock);
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+          if (p->state != RUNNABLE || p->priority != MID_PRIORITY)
+            continue;
+          if(isEmtpy(queue) || p != peek(queue)){
+            continue;
+          }
+          proc = p;
+          switchuvm(p);
+          p->state = RUNNING;
+          removeFromQueue(midQueue);
+          removeFromQueue(queue);
+          swtch(&cpu->scheduler, p->context);
+          switchkvm();
+          proc = 0;
+        }
+        release(&ptable.lock);
+      }
+      if(!isEmtpy(lowQueue)){
+        acquire(&ptable.lock);
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+          if (p->state != RUNNABLE || p->priority != LOW_PRIORITY)
+            continue;
+          if(ticks % QUANTA == 0){
+            proc = p;
+            switchuvm(p);
+            p->state = RUNNING;
+            removeFromQueue(lowQueue);
+            swtch(&cpu->scheduler, p->context);
+            switchkvm();
+            proc = 0;
+          }
+        }
+        release(&ptable.lock);
+      }
     }
     else{
       // Loop over process table looking for process to run.
@@ -399,18 +593,15 @@ scheduler(void)
           }
         }
         else if(SCHEDFLAG == FRR){
-          if(!isEmtpy() && p != peek()){
+          if(isEmtpy(queue) || p != peek(queue)){
             continue;
           }
           proc = p;
           switchuvm(p);
           p->state = RUNNING;
-          removeFromQueue();
+          removeFromQueue(queue);
           swtch(&cpu->scheduler, p->context);
           switchkvm();
-
-          // Process is" done running for now.
-          // It should have changed its p->state before coming back.
           proc = 0;
         }
       }
@@ -450,8 +641,8 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
-  if(SCHEDFLAG == FRR)
-    addToQueue(proc);
+  if(SCHEDFLAG == FRR || (SCHEDFLAG == Q3 && proc->priority == MID_PRIORITY))
+    addToQueue(queue, proc);
   sched();
   release(&ptable.lock);
 }
@@ -525,8 +716,8 @@ wakeup1(void *chan)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan){
       p->state = RUNNABLE;
-      if(SCHEDFLAG == FRR)
-         addToQueue(p);
+      if(SCHEDFLAG == FRR || (SCHEDFLAG == Q3 && p->priority == MID_PRIORITY))
+        addToQueue(queue, p);
     }
 }
 
@@ -554,8 +745,8 @@ kill(int pid)
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING){
         p->state = RUNNABLE;
-        if(SCHEDFLAG == FRR)
-          addToQueue(p);
+        if(SCHEDFLAG == FRR || (SCHEDFLAG == Q3 && p->priority == MID_PRIORITY))
+          addToQueue(queue, p);
       }
       release(&ptable.lock);
       return 0;

@@ -103,6 +103,7 @@ extern int sys_getperformancedata(void);
 extern int sys_rrsanity(void);
 extern int sys_frrtest(void);
 extern int sys_gsanity(void);
+extern int sys_nice(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,

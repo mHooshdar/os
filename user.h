@@ -28,6 +28,7 @@ int getperformancedata(int*, int*);
 int rrsanity(void);
 int frrtest(void);
 int gsanity(void);
+int nice(void);
 
 // ulib.c
 int stat(char*, struct stat*);

@@ -122,3 +122,15 @@ sys_gsanity(void)
 {
     return 0;
 }
+int
+sys_nice(void)
+{
+    proc->priority--;
+    if(proc->priority == LOW_PRIORITY - 1){
+        proc->priority = LOW_PRIORITY;
+        return -1;
+    }
+    else{
+        return 0;
+    }
+}

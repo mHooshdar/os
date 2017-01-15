@@ -25,3 +25,4 @@
 #define SYS_rrsanity 24
 #define SYS_frrtest 25
 #define SYS_gsanity 26
+#define SYS_nice 27
