@@ -99,13 +99,14 @@ sys_getppid(void)
 int 
 sys_getperformancedata(void)
 {
-   char* wtime;
-   char* rtime;
-   argstr(0, &wtime);
-   argstr(1, &rtime);
-   *wtime = ticks - proc->ctime - proc->rtime;
-   *rtime = proc->rtime;
-   return 0;
+//   char* wtime;
+//   char* rtime;
+//   argstr(0, &wtime);
+//   argstr(1, &rtime);
+//   *wtime = ticks - proc->ctime - proc->rtime;
+//   *rtime = proc->rtime;
+//   return 0;
+    return wait2();
 }
 int
 sys_rrsanity(void)

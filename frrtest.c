@@ -13,14 +13,12 @@ void printLine() {
 
 void myfrrtest(void) {
     int numberOfForks = 10;
-    //int pid;
     int forkId;
 
     int i;
     for (i=0;i<numberOfForks;i++){
         forkId = fork();
         if(forkId == 0) {
-            //pid = getpid();
             printLine();
             exit();
         }

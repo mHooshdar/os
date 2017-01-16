@@ -33,10 +33,11 @@ void sanitytest(void) {
             else{
             }
             printLine();
-            getperformancedata(&wTime, &rTime);
-            printf(2, "PID : %d - Wait time : %d - Running time : %d - Turn Around time : %d.\n", pid, wTime, rTime, rTime + wTime);
             exit();
         }
+    }
+    while(wait() > 0){
+        printf(2, "PID : %d - Wait time : %d - Running time : %d - Turn Around time : %d.\n", getperformancedata(&wTime, &rTime), wTime, rTime, rTime + wTime);
     }
 }
 

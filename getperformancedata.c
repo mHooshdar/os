@@ -34,18 +34,16 @@ waittest(void)
   int pid;
   printf(1, "wait test\n");
 
-
     pid = fork();
     if(pid == 0)
     {
       foo();
-getperformancedata(&wTime,&rTime);
-     printf(1, "hi \n");
-    printf(1, "wTime: %d rTime: %d \n",wTime,rTime);
-      exit();      
+      exit();
     }
-wait();
-    
+    getperformancedata(&wTime,&rTime);
+    printf(1, "hi \n");
+    printf(1, "wTime: %d rTime: %d \n",wTime,rTime);
+
 
 }
 int
