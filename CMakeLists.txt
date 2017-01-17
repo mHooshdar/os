@@ -75,6 +75,6 @@ set(SOURCE_FILES
     vm.c
     wc.c
     x86.h
-    zombie.c RRSanity.c frrtest.c gsanity.c sanity.c)
+    zombie.c RRSanity.c frrtest.c gsanity.c sanity.c printValid.c)
 
 add_executable(Final ${SOURCE_FILES})

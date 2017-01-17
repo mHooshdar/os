@@ -162,6 +162,18 @@ void removeAllFromQueue(){
   rearLow = -1;
   lowItemCount = 0;
 }
+void display(){
+    int i = 0;
+    for(i = front; i < rear; i++){
+        cprintf("%d, ", queue[i]->pid);
+    }
+    if(front <= 0 || rear <= 0 || front > rear){
+
+    }
+    else{
+        cprintf("\n\n\n");
+    }
+}
 
 void
 pinit(void)
@@ -447,7 +459,7 @@ scheduler(void)
         }
       }
       release(&ptable.lock);
-      int min;
+      float min;
       struct proc* minProc = ptable.proc;
       min = 100000;
       acquire(&ptable.lock);
@@ -583,14 +595,14 @@ scheduler(void)
           proc = 0;
         }
         else if(SCHEDFLAG == RR){
-          if(ticks % QUANTA == 0){
+          //if(ticks % QUANTA == 0){
             proc = p;
             switchuvm(p);
             p->state = RUNNING;
             swtch(&cpu->scheduler, p->context);
             switchkvm();
             proc = 0;
-          }
+          //}
         }
         else if(SCHEDFLAG == FRR){
           if(isEmtpy(queue) || p != peek(queue)){
@@ -600,6 +612,9 @@ scheduler(void)
           switchuvm(p);
           p->state = RUNNING;
           removeFromQueue(queue);
+          if(printIsValid){
+            display();
+          }
           swtch(&cpu->scheduler, p->context);
           switchkvm();
           proc = 0;
@@ -826,7 +841,7 @@ wait2()
         argptr(1,&rtime,sizeof(int));
 
         *rtime = p->rtime;
-        *wtime = (p->etime - p->ctime)-(p->rtime);
+        *wtime = (ticks - p->ctime)-(p->rtime);
 
         release(&ptable.lock);
         return pid;

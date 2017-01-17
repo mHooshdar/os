@@ -1,3 +1,4 @@
+#include "stdbool.h"
 struct buf;
 struct context;
 struct file;
@@ -117,6 +118,7 @@ int             wait(void);
 int             wait2(void);
 void            wakeup(void*);
 void            yield(void);
+bool printIsValid;
 
 // swtch.S
 void            swtch(struct context**, struct context*);

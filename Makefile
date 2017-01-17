@@ -180,6 +180,7 @@ UPROGS=\
 	_gsanity\
 	_nice\
 	_sanity\
+	_printValid\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

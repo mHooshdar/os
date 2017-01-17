@@ -126,17 +126,23 @@ sys_gsanity(void)
 int
 sys_nice(void)
 {
-    proc->priority--;
-    if(proc->priority == LOW_PRIORITY - 1){
-        proc->priority = LOW_PRIORITY;
-        return -1;
-    }
-    else{
-        return 0;
-    }
+  proc->priority--;
+  if(proc->priority == LOW_PRIORITY - 1){
+    proc->priority = LOW_PRIORITY;
+    return -1;
+  }
+  else{
+    return 0;
+  }
 }
 int
 sys_sanity(void)
 {
+    return 0;
+}
+int
+sys_printValid(void)
+{
+    printIsValid = !printIsValid;
     return 0;
 }

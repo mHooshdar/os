@@ -27,3 +27,4 @@
 #define SYS_gsanity 26
 #define SYS_nice 27
 #define SYS_sanity 28
+#define SYS_printValid 29

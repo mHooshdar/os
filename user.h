@@ -30,6 +30,7 @@ int frrtest(void);
 int gsanity(void);
 int nice(void);
 int sanity(void);
+int printValid(void);
 
 // ulib.c
 int stat(char*, struct stat*);

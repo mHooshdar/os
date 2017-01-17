@@ -66,7 +66,7 @@ struct proc {
   uint ctime;		       // Creation time
   uint etime;		       // End time
   uint rtime;		       // Total running time
-  uint gtime;              // Guaranteed time
+  float gtime;              // Guaranteed time
   uint priority;           // Priority: 3 High - 2 Mid - 1 Min
 };
 
